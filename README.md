@@ -174,10 +174,6 @@ CustomAgent/
 └── README.md         # This file
 ```
 
-## License
-
-MIT License - feel free to use and modify!
-
 ## Contributing
 
 Contributions are welcome! Some ideas:
