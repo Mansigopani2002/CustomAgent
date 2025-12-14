@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Chat</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --sidebar-color: #1e293b;
+            --chat-bg: #1e293b;
+            --input-bg: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-color: #3b82f6;
+            --accent-hover: #2563eb;
+            --user-msg-bg: #3b82f6;
+            --bot-msg-bg: #334155;
+            --tool-bg: #0f172a;
+            --border-color: #334155;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        header {
+            padding: 1rem 2rem;
+            background-color: var(--sidebar-color);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        #chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            max-width: 900px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .message {
+            display: flex;
+            flex-direction: column;
+            max-width: 80%;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            align-items: flex-end;
+        }
+
+        .message.agent {
+            align-self: flex-start;
+            align-items: flex-start;
+        }
+
+        .bubble {
+            padding: 1rem 1.25rem;
+            border-radius: 1rem;
+            line-height: 1.6;
+            font-size: 0.95rem;
+            position: relative;
+            word-wrap: break-word;
+        }
+
+        .user .bubble {
+            background-color: var(--user-msg-bg);
+            color: white;
+            border-bottom-right-radius: 0.25rem;
+        }
+
+        .agent .bubble {
+            background-color: var(--bot-msg-bg);
+            color: var(--text-primary);
+            border-bottom-left-radius: 0.25rem;
+        }
+
+        /* Tool/Thought container */
+        .thought-container {
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+            width: 100%;
+        }
+
+        .thought-header {
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0;
+            user-select: none;
+            transition: color 0.2s;
+        }
+        
+        .thought-header:hover {
+            color: var(--text-primary);
+        }
+
+        .thought-content {
+            background-color: var(--tool-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            margin-top: 0.25rem;
+            font-family: 'Consolas', 'Monaco', monospace;
+            white-space: pre-wrap;
+            color: var(--text-secondary);
+            display: none; /* Hidden by default */
+            font-size: 0.8rem;
+        }
+
+        .thought-content.open {
+            display: block;
+        }
+        
+        .thought-icon {
+            font-size: 1rem;
+        }
+
+        /* Input Area */
+        #input-area {
+            padding: 1.5rem 2rem;
+            background-color: var(--sidebar-color);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: center;
+        }
+
+        .input-wrapper {
+            max-width: 900px;
+            width: 100%;
+            position: relative;
+            display: flex;
+            gap: 1rem;
+        }
+
+        textarea {
+            flex: 1;
+            background-color: var(--input-bg);
+            border: 1px solid transparent;
+            border-radius: 0.75rem;
+            color: var(--text-primary);
+            padding: 1rem;
+            font-family: inherit;
+            font-size: 1rem;
+            resize: none;
+            height: 60px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        textarea:focus {
+            border-color: var(--accent-color);
+        }
+
+        button {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 0.75rem;
+            padding: 0 1.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            height: 60px;
+        }
+
+        button:hover {
+            background-color: var(--accent-hover);
+        }
+
+        button:disabled {
+            background-color: var(--text-secondary);
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background-color: var(--input-bg);
+            border-radius: 4px;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Markdown Styles */
+        .bubble code {
+            background-color: rgba(0,0,0,0.3);
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.25rem;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        
+        .bubble pre {
+            background-color: rgba(0,0,0,0.3);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            margin: 0.5rem 0;
+        }
+        
+        .bubble pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+        
+        .bubble p {
+            margin-bottom: 0.5rem;
+        }
+        
+        .bubble p:last-child {
+            margin-bottom: 0;
+        }
+
+        .status-indicator {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+            font-style: italic;
+        }
+
+    </style>
+</head>
+<body>
+
+<header>
+    <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <div style="width: 12px; height: 12px; background-color: #22c55e; border-radius: 50%;"></div>
+        <h1>Custom Agent</h1>
+    </div>
+</header>
+
+<div id="chat-container">
+    <div class="message agent">
+        <div class="bubble">
+            Hello! I am your AI assistant. How can I help you today?
+        </div>
+    </div>
+</div>
+
+<div id="input-area">
+    <div class="input-wrapper">
+        <textarea id="user-input" placeholder="Type a message..." onkeydown="handleKey(event)"></textarea>
+        <button id="send-btn" onclick="sendMessage()">Send</button>
+    </div>
+</div>
+
+<script>
+    const chatContainer = document.getElementById('chat-container');
+    const userInput = document.getElementById('user-input');
+    const sendBtn = document.getElementById('send-btn');
+    
+    let currentEventSource = null;
+
+    function handleKey(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    }
+
+    async function sendMessage() {
+        const text = userInput.value.trim();
+        if (!text) return;
+
+        // User Message
+        appendMessage('user', text);
+        userInput.value = '';
+        userInput.disabled = true;
+        sendBtn.disabled = true;
+
+        // Create Agent placeholder
+        const agentMsgContainer = document.createElement('div');
+        agentMsgContainer.className = 'message agent';
+        
+        // Container for thoughts/tools
+        const thoughtsContainer = document.createElement('div');
+        thoughtsContainer.className = 'thoughts-wrapper';
+        agentMsgContainer.appendChild(thoughtsContainer);
+
+        // Bubble for final answer
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble';
+        bubble.innerHTML = '<span class="status-indicator">Thinking...</span>';
+        agentMsgContainer.appendChild(bubble);
+
+        chatContainer.appendChild(agentMsgContainer);
+        scrollToBottom();
+
+        let currentThoughtBlob = null;
+        let finalAnswerAccumulator = "";
+        let isAnswering = false;
+
+        try {
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: text })
+            });
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n\n');
+                buffer = lines.pop(); // Keep the last incomplete chunk
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const dataStr = line.slice(6);
+                        if (dataStr === '[DONE]') {
+                            break;
+                        }
+
+                        try {
+                            const event = JSON.parse(dataStr);
+                            
+                            if (event.type === 'thought' || event.type === 'tool' || event.type === 'error') {
+                                // Add to thoughts container
+                                const thoughtDiv = document.createElement('div');
+                                thoughtDiv.className = 'thought-container';
+                                
+                                const header = document.createElement('div');
+                                header.className = 'thought-header';
+                                
+                                let icon = '💭';
+                                if (event.type === 'tool') icon = '🛠️';
+                                if (event.type === 'error') icon = '❌';
+
+                                header.innerHTML = `<span class="thought-icon">${icon}</span> <span>${event.type === 'tool' ? 'Tool Usage' : 'Internal Thought'}</span>`;
+                                
+                                const content = document.createElement('div');
+                                content.className = 'thought-content';
+                                content.textContent = event.content;
+                                
+                                header.onclick = () => content.classList.toggle('open');
+                                
+                                thoughtDiv.appendChild(header);
+                                thoughtDiv.appendChild(content);
+                                thoughtsContainer.appendChild(thoughtDiv);
+                                
+                                // Auto-expand errors
+                                if (event.type === 'error') content.classList.add('open');
+
+                            } else if (event.type === 'answer') {
+                                if (!isAnswering) {
+                                    // First answer chunk, clear the "Thinking..."
+                                    bubble.innerHTML = '';
+                                    isAnswering = true;
+                                }
+                                // It wasn't really streaming char by char in the python script (it yields full content)
+                                // but if we were streaming tokens, we'd append here.
+                                // Our python script yields the FULL explanation at once currently.
+                                // If we change python to stream tokens, we do +=.
+                                // For now, let's just set it.
+                                finalAnswerAccumulator = event.content;
+                                bubble.innerHTML = marked.parse(finalAnswerAccumulator);
+                            }
+                        } catch (e) {
+                            console.error('Error parsing SSE:', e);
+                        }
+                    }
+                }
+                scrollToBottom();
+            }
+
+        } catch (err) {
+            bubble.innerHTML += `<br><span style="color:red">[Connection Error]</span>`;
+            console.error(err);
+        } finally {
+            userInput.disabled = false;
+            sendBtn.disabled = false;
+            userInput.focus();
+            if (!isAnswering && !finalAnswerAccumulator) {
+               // If we finished without an answer (e.g. error only), keep what we have
+               if (bubble.innerHTML.includes("Thinking...")) {
+                   bubble.innerHTML = "<span style='color:red'>No answer produced.</span>";
+               }
+            }
+        }
+    }
+
+    function appendMessage(role, text) {
+        const div = document.createElement('div');
+        div.className = `message ${role}`;
+        
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble';
+        
+        if (role === 'user') {
+            bubble.textContent = text;
+        } else {
+            bubble.innerHTML = marked.parse(text);
+        }
+        
+        div.appendChild(bubble);
+        chatContainer.appendChild(div);
+        scrollToBottom();
+    }
+
+    function scrollToBottom() {
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+</script>
+
+</body>
+</html>
