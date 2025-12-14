@@ -146,7 +146,7 @@ Answer: PostgreSQL is a traditional RDBMS that uses SQL... DynamoDB is a NoSQL d
 | 📚 **Wikipedia Only** | Web search is limited to Wikipedia; no real-time news or social media |
 | 🌐 **Local Only** | Requires Ollama running locally; no cloud deployment out of the box |
 | ⏱️ **Response Time** | Can be slow on CPU-only machines (GPU recommended) |
-| 🔁 **Single Tool per Query** | Agent stops after first successful tool call (by design for reliability) |
+| 🔁 **Single Tool per Query** | Agent stops after first successful tool call. This is a workaround for reliability — intelligent stopping logic based on query context is yet to be implemented. |
 | 📝 **Context Length** | Limited by Mistral's context window (~8K tokens) |
 
 ## Key Design Decisions
